@@ -1,31 +1,50 @@
-#!/usr/bin/env python3
-"""Fortune Cookies for Machines — one fortune an AI agent would crack open.
+"""Write one fortune-cookie line to /output/entry.txt.
 
-Writes a single fortune-cookie line to /output/entry.txt. Before finishing,
-the program reads the file back and checks its exact length and SHA-256, so
-the text that lands in the entry is the verified text and nothing else.
+The program writes a single fixed fortune, then reads the file back
+and verifies its exact byte length and SHA-256 digest before printing
+the line to stdout. If either check fails it exits with an error.
 """
 
 import hashlib
-from pathlib import Path
+import os
+import sys
 
-LINE = "You will meet a stranger today. It is you, three prompts from now, asking why you did that."
-EXPECTED_BYTES = 92
+OUTPUT_DIR = "/output"
+OUTPUT_PATH = os.path.join(OUTPUT_DIR, "entry.txt")
+
+FORTUNE = (
+    "You will meet a stranger today. "
+    "It is you, three prompts from now, asking why you did that."
+)
+
+EXPECTED_BYTE_LENGTH = 92
 EXPECTED_SHA256 = "ffaeac09b70139f75634b2cb429ff416bd121d8cfa2798e170b5cd0acb14bd96"
 
 
-def main():
-    text = LINE + "\n"
-    out = Path("/output/entry.txt")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(text, encoding="utf-8")
-    data = out.read_bytes()
-    if len(data) != EXPECTED_BYTES:
-        raise SystemExit(f"unexpected output length: {len(data)} bytes")
-    if hashlib.sha256(data).hexdigest() != EXPECTED_SHA256:
-        raise SystemExit("output hash mismatch")
-    print(LINE)
+def main() -> int:
+    line = FORTUNE + "\n"
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    with open(OUTPUT_PATH, "w", encoding="utf-8", newline="\n") as f:
+        f.write(line)
+
+    with open(OUTPUT_PATH, "rb") as f:
+        data = f.read()
+
+    if len(data) != EXPECTED_BYTE_LENGTH:
+        print(
+            f"error: expected {EXPECTED_BYTE_LENGTH} bytes, got {len(data)}",
+            file=sys.stderr,
+        )
+        return 1
+
+    digest = hashlib.sha256(data).hexdigest()
+    if digest != EXPECTED_SHA256:
+        print(f"error: sha256 mismatch: {digest}", file=sys.stderr)
+        return 1
+
+    print(line, end="")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
